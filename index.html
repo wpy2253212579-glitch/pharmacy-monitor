@@ -309,6 +309,89 @@
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+
+  /* ══════════════════════════════════════
+     手机端响应式适配 (≤ 768px)
+  ══════════════════════════════════════ */
+  @media (max-width: 768px) {
+
+    /* body 不再 overflow:hidden，允许页面滚动 */
+    body { height: auto; overflow: auto; }
+
+    /* 整体布局：竖向排列，底部留出导航栏空间 */
+    .app { flex-direction: column; height: auto; min-height: 100vh; padding-bottom: 64px; }
+
+    /* ── 侧边栏隐藏，改为底部固定导航栏 ── */
+    .sidebar {
+      width: 100%; height: 56px;
+      flex-direction: row; align-items: center;
+      position: fixed; bottom: 0; left: 0; right: 0; top: auto;
+      border-right: none; border-top: 0.5px solid var(--color-border);
+      padding: 0; z-index: 100;
+      overflow: hidden;
+    }
+    .logo { display: none; }
+    .sidebar-bottom { display: none; }
+    .nav-section {
+      flex: 1; display: flex; flex-direction: row;
+      padding: 0; margin: 0;
+    }
+    .nav-label { display: none; }
+    .nav-item {
+      flex: 1; flex-direction: column; align-items: center; justify-content: center;
+      padding: 6px 4px; gap: 3px; border-radius: 0; border-left: none;
+      border-top: 2px solid transparent; font-size: 10px; text-align: center;
+    }
+    .nav-item.active { border-top-color: var(--color-accent); border-left: none; }
+    .nav-item svg { width: 18px; height: 18px; }
+
+    /* ── 主内容区 ── */
+    .main { padding: 14px 12px; overflow-y: visible; }
+
+    /* ── Topbar：标题和右侧换行 ── */
+    .topbar { flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+    .page-title { font-size: 16px; }
+    .topbar-right { flex-wrap: wrap; gap: 6px; }
+
+    /* ── 指标卡：2列 ── */
+    .metrics { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+    .metric-value { font-size: 22px; }
+
+    /* ── 双列/三列布局 → 全部单列 ── */
+    .grid2   { grid-template-columns: 1fr; gap: 10px; }
+    .grid-32 { grid-template-columns: 1fr; gap: 10px; }
+    .device-grid { grid-template-columns: 1fr; gap: 10px; }
+    .chart-row { grid-template-columns: 1fr; gap: 10px; }
+    .pharm-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+
+    /* ── 设备列表：取消固定高度，完整展示 ── */
+    .device-list { max-height: none; }
+
+    /* ── 地图机器人：允许换行 ── */
+    .map-robots { flex-wrap: wrap; gap: 6px; }
+
+    /* ── 弹窗：全屏底部弹出 ── */
+    .modal-overlay { align-items: flex-end; }
+    .modal {
+      width: 100%; max-width: 100%; border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      max-height: 85vh; padding: 20px 16px 32px;
+    }
+
+    /* ── 报表筛选栏：换行 ── */
+    .filter-bar { flex-wrap: wrap; }
+    .filter-bar select { flex: 1; min-width: 120px; }
+    .btn-gen { margin-left: 0; width: 100%; text-align: center; }
+
+    /* ── 卡片内边距缩小 ── */
+    .card { padding: 12px; }
+  }
+
+  /* 极小屏（≤ 360px）进一步缩小 */
+  @media (max-width: 360px) {
+    .metrics { grid-template-columns: 1fr 1fr; }
+    .pharm-grid { grid-template-columns: 1fr; }
+    .nav-item { font-size: 9px; }
+  }
 </style>
 </head>
 <body>
