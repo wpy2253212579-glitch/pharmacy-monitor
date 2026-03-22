@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>中药调剂系统 — 主任药师监控台</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f5f5f4;
+    --color-bg-tertiary: #eeece6;
+    --color-bg-info: #e6f1fb;
+    --color-bg-success: #eaf3de;
+    --color-bg-warning: #faeeda;
+    --color-bg-danger: #fcebeb;
+    --color-text-primary: #1a1a18;
+    --color-text-secondary: #5f5e5a;
+    --color-text-info: #185fa5;
+    --color-text-success: #3b6d11;
+    --color-text-warning: #633806;
+    --color-text-danger: #791f1f;
+    --color-border: rgba(0,0,0,0.12);
+    --color-border-strong: rgba(0,0,0,0.22);
+    --color-accent: #378ADD;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --font: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg-primary: #1e1e1c;
+      --color-bg-secondary: #282826;
+      --color-bg-tertiary: #141412;
+      --color-bg-info: #0c2a42;
+      --color-bg-success: #17340a;
+      --color-bg-warning: #412402;
+      --color-bg-danger: #501313;
+      --color-text-primary: #f0ede6;
+      --color-text-secondary: #b4b2a9;
+      --color-text-info: #85b7eb;
+      --color-text-success: #c0dd97;
+      --color-text-warning: #fac775;
+      --color-text-danger: #f09595;
+      --color-border: rgba(255,255,255,0.10);
+      --color-border-strong: rgba(255,255,255,0.20);
+      --color-accent: #378ADD;
+    }
+  }
+
+  body {
+    font-family: var(--font);
+    font-size: 13px;
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .app { display: flex; height: 100vh; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 190px;
+    flex-shrink: 0;
+    background: var(--color-bg-primary);
+    border-right: 0.5px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+  }
+  .logo { padding: 0 16px 18px; border-bottom: 0.5px solid var(--color-border); margin-bottom: 12px; }
+  .logo-icon { width: 32px; height: 32px; background: var(--color-bg-info); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .logo-icon svg { width: 18px; height: 18px; color: var(--color-text-info); }
+  .logo-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+  .logo-sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+
+  .nav-section { padding: 0 10px; margin-bottom: 4px; }
+  .nav-label { font-size: 10px; color: var(--color-text-secondary); letter-spacing: .08em; text-transform: uppercase; padding: 6px 8px 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 10px; cursor: pointer;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md);
+    border-left: 2px solid transparent;
+    transition: all .15s; font-size: 13px;
+  }
+  .nav-item:hover { background: var(--color-bg-secondary); color: var(--color-text-primary); }
+  .nav-item.active { background: var(--color-bg-info); color: var(--color-text-info); font-weight: 500; }
+  .nav-item svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+  .sidebar-bottom { margin-top: auto; padding: 12px 16px; border-top: 0.5px solid var(--color-border); }
+  .user-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--color-bg-info); color: var(--color-text-info); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; }
+  .user-row { display: flex; align-items: center; gap: 8px; }
+  .user-name { font-size: 12px; font-weight: 500; }
+  .user-role { font-size: 11px; color: var(--color-text-secondary); }
+  .refresh-badge { margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 4px; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #639922; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── Main ── */
+  .main { flex: 1; overflow-y: auto; padding: 22px 24px; }
+  .page { display: none; }
+  .page.active { display: block; animation: fadein .2s ease; }
+  @keyframes fadein { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+  .page-title { font-size: 18px; font-weight: 600; color: var(--color-text-primary); }
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px; border-radius: var(--radius-md);
+    font-size: 11px; font-weight: 500;
+  }
+  .badge-danger  { background: var(--color-bg-danger);  color: var(--color-text-danger); }
+  .badge-success { background: var(--color-bg-success); color: var(--color-text-success); }
+  .badge-warning { background: var(--color-bg-warning); color: var(--color-text-warning); }
+  .badge-info    { background: var(--color-bg-info);    color: var(--color-text-info); }
+  .badge-muted   { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--color-bg-primary);
+    border: 0.5px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 500; color: var(--color-text-secondary);
+    text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px;
+  }
+
+  /* ── Metric cards ── */
+  .metrics { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 16px; }
+  .metric-card { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; }
+  .metric-value { font-size: 26px; font-weight: 600; color: var(--color-text-primary); line-height: 1; }
+  .metric-value.danger  { color: var(--color-text-danger); }
+  .metric-value.success { color: var(--color-text-success); }
+  .metric-sub { font-size: 11px; color: var(--color-text-secondary); margin-top: 4px; }
+
+  /* ── Layout grids ── */
+  .grid2   { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid-32 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+
+  /* ── Map ── */
+  .map-area { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 12px; margin-bottom: 10px; }
+  .map-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; margin-bottom: 8px; }
+  .map-item {
+    border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; cursor: pointer; transition: opacity .15s; padding: 6px 2px;
+    min-height: 32px; user-select: none;
+  }
+  .map-item:hover { opacity: .75; }
+  .map-cabinet        { background: #B5D4F4; color: #0C447C; }
+  .map-cabinet.warn   { background: #FAC775; color: #633806; }
+  .map-cabinet.err    { background: #F7C1C1; color: #791F1F; }
+  .map-robots { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+  .map-robot {
+    width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; cursor: pointer; transition: opacity .15s;
+  }
+  .map-robot:hover { opacity: .75; }
+  .map-robot.busy     { background: #9FE1CB; color: #085041; }
+  .map-robot.idle     { background: #C0DD97; color: #27500A; }
+  .map-robot.charging { background: #FAC775; color: #633806; opacity: .7; }
+  .map-legend { display: flex; gap: 14px; font-size: 11px; color: var(--color-text-secondary); flex-wrap: wrap; }
+  .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; }
+
+  /* ── Detail panel ── */
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 0.5px solid var(--color-border); font-size: 12px; }
+  .detail-row:last-child { border: none; }
+  .detail-label { color: var(--color-text-secondary); }
+
+  /* ── Task / Alarm lists ── */
+  .task-item { display: flex; align-items: flex-start; gap: 9px; padding: 8px 0; border-bottom: 0.5px solid var(--color-border); font-size: 12px; }
+  .task-item:last-child { border: none; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .dot-success { background: #639922; }
+  .dot-info    { background: #378ADD; }
+  .dot-warning { background: #BA7517; }
+  .dot-danger  { background: #A32D2D; }
+
+  /* ── Device page ── */
+  .device-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .device-list { display: flex; flex-direction: column; gap: 6px; max-height: 400px; overflow-y: auto; }
+  .device-row {
+    display: flex; align-items: center; gap: 9px; padding: 9px 11px;
+    background: var(--color-bg-secondary); border-radius: var(--radius-md);
+    cursor: pointer; transition: background .15s;
+  }
+  .device-row:hover { background: var(--color-bg-info); }
+  .device-name { font-weight: 500; flex: 1; font-size: 12px; }
+  .progress-bar { height: 3px; border-radius: 2px; background: var(--color-border); margin-top: 3px; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+  .fill-green { background: #639922; }
+  .fill-amber { background: #BA7517; }
+  .fill-red   { background: #A32D2D; }
+  .robot-card { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 12px; font-size: 12px; margin-bottom: 8px; }
+  .robot-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .robot-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .btn-sm {
+    font-size: 11px; padding: 4px 10px; border: 0.5px solid var(--color-border-strong);
+    border-radius: var(--radius-md); cursor: pointer;
+    background: var(--color-bg-primary); color: var(--color-text-primary); transition: all .15s;
+  }
+  .btn-sm:hover { background: var(--color-bg-danger); color: var(--color-text-danger); }
+  .btn-sm.charge:hover { background: var(--color-bg-warning); color: var(--color-text-warning); }
+
+  /* ── Reports page ── */
+  .filter-bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-bar select {
+    font-size: 12px; padding: 5px 10px;
+    border: 0.5px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary); cursor: pointer;
+    font-family: var(--font);
+  }
+  .btn-gen {
+    margin-left: auto; font-size: 12px; padding: 6px 14px;
+    border: 0.5px solid var(--color-border-strong); border-radius: var(--radius-md);
+    cursor: pointer; background: var(--color-bg-info); color: var(--color-text-info);
+    font-family: var(--font); font-weight: 500; transition: opacity .15s;
+  }
+  .btn-gen:hover { opacity: .8; }
+  .chart-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .chart-legend { display: flex; gap: 12px; font-size: 11px; color: var(--color-text-secondary); margin-bottom: 6px; flex-wrap: wrap; }
+  .legend-sq { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 3px; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 8px 10px; border-bottom: 0.5px solid var(--color-border-strong); color: var(--color-text-secondary); font-weight: 500; white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 0.5px solid var(--color-border); color: var(--color-text-primary); white-space: nowrap; }
+  tr:hover td { background: var(--color-bg-secondary); }
+
+  /* ── Status pills ── */
+  .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: var(--radius-md); font-size: 11px; }
+  .pill-done     { background: var(--color-bg-success); color: var(--color-text-success); }
+  .pill-progress { background: var(--color-bg-info);    color: var(--color-text-info); }
+  .pill-pending  { background: var(--color-bg-secondary); color: var(--color-text-secondary); }
+  .pill-error    { background: var(--color-bg-danger);  color: var(--color-text-danger); }
+
+  /* ── Pharmacists page ── */
+  .pharm-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .pharm-card { background: var(--color-bg-secondary); border-radius: var(--radius-md); padding: 14px; font-size: 12px; }
+  .pharm-card.offline { opacity: .5; }
+  .pharm-avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; margin-bottom: 10px; }
+  .pharm-avatar.online  { background: var(--color-bg-info);    color: var(--color-text-info); }
+  .pharm-avatar.offline { background: var(--color-bg-secondary); color: var(--color-text-secondary); border: 0.5px solid var(--color-border); }
+  .pharm-name { font-weight: 500; margin-bottom: 2px; }
+  .pharm-role { color: var(--color-text-secondary); font-size: 11px; margin-bottom: 8px; }
+  .pharm-stat { display: flex; justify-content: space-between; border-top: 0.5px solid var(--color-border); padding-top: 6px; }
+
+  /* ── Orders page ── */
+  .search-bar { margin-bottom: 14px; }
+  .search-bar input {
+    width: 100%; padding: 8px 14px;
+    border: 0.5px solid var(--color-border-strong);
+    border-radius: var(--radius-md); font-size: 13px;
+    background: var(--color-bg-primary); color: var(--color-text-primary);
+    font-family: var(--font); outline: none;
+  }
+  .search-bar input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 2px rgba(55,138,221,.15); }
+
+  /* ── Modals ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 200; animation: fadein .15s ease;
+  }
+  .modal {
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-lg);
+    border: 0.5px solid var(--color-border);
+    padding: 22px; width: 400px; max-height: 80vh; overflow-y: auto;
+  }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .modal-title { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+  .modal-close { cursor: pointer; color: var(--color-text-secondary); font-size: 18px; line-height: 1; background: none; border: none; }
+  .modal-close:hover { color: var(--color-text-primary); }
+
+  /* ── Drawer grid ── */
+  .drawer-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+  .drawer-cell {
+    aspect-ratio: 1; border-radius: 3px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 8px; text-align: center; cursor: default; line-height: 1.3; padding: 2px;
+  }
+  .cell-ok   { border: 1.5px solid #639922; color: #3B6D11; background: #EAF3DE; }
+  .cell-warn { border: 1.5px solid #BA7517; color: #633806; background: #FAEEDA; }
+  .cell-low  { border: 1.5px solid #A32D2D; color: #791F1F; background: #FCEBEB; }
+
+  /* ── Report box ── */
+  .report-box { background: var(--color-bg-info); border-radius: var(--radius-md); padding: 12px 14px; margin-bottom: 10px; }
+  .report-box:last-child { margin-bottom: 0; }
+  .report-box-title { font-weight: 600; color: var(--color-text-info); font-size: 12px; margin-bottom: 4px; }
+  .report-box p { font-size: 12px; color: var(--color-text-info); line-height: 1.6; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══ Sidebar ══ -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M10 2L3 6v8l7 4 7-4V6L10 2z"/>
+          <path d="M10 2v12M3 6l7 4 7-4"/>
+        </svg>
+      </div>
+      <div class="logo-title">中药调剂系统</div>
+      <div class="logo-sub">主任药师监控台</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">监控</div>
+      <div class="nav-item active" onclick="showPage('overview',this)">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".8"/><rect x="9" y="1" width="6" height="6" rx="1" fill="currentColor" opacity=".8"/><rect x="1" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="9" y="9" width="6" height="6" rx="1" fill="currentColor" opacity=".5"/></svg>
+        运行总览
+      </div>
+      <div class="nav-item" onclick="showPage('devices',this)">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="8" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 11v2M11 11v2M3 13h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        设备状态
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">数据</div>
+      <div class="nav-item" onclick="showPage('reports',this)">
+        <svg viewBox="0 0 16 16" fill="none"><path d="M2 12L5.5 7.5 8 10l3-4.5L14 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><line x1="2" y1="14" x2="14" y2="14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        数据报表
+      </div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">管理</div>
+      <div class="nav-item" onclick="showPage('pharmacists',this)">
+        <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M2 14c0-3.314 2.686-5 6-5s6 1.686 6 5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        药师管理
+      </div>
+      <div class="nav-item" onclick="showPage('orders',this)">
+        <svg viewBox="0 0 16 16" fill="none"><rect x="3" y="2" width="10" height="12" rx="1" stroke="currentColor" stroke-width="1.2"/><line x1="5.5" y1="6" x2="10.5" y2="6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="5.5" y1="9" x2="10.5" y2="9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        药单列表
+      </div>
+    </div>
+
+    <div class="sidebar-bottom">
+      <div class="user-row">
+        <div class="user-avatar">张</div>
+        <div><div class="user-name">张伟华</div><div class="user-role">主任药师</div></div>
+      </div>
+      <div class="refresh-badge"><div class="live-dot"></div>每30秒自动刷新</div>
+    </div>
+  </div>
+
+  <!-- ══ Main ══ -->
+  <div class="main">
+
+    <!-- ─ 运行总览 ─ -->
+    <div id="page-overview" class="page active">
+      <div class="topbar">
+        <div class="page-title">运行总览</div>
+        <div class="topbar-right">
+          <span id="clock" style="font-size:12px;color:var(--color-text-secondary)"></span>
+          <span class="badge badge-danger">⚠ 4 条未处理报警</span>
+        </div>
+      </div>
+      <div class="metrics">
+        <div class="metric-card"><div class="metric-label">在线设备数</div><div class="metric-value">16<span style="font-size:13px;color:var(--color-text-secondary)"> / 17</span></div><div class="metric-sub">1台故障</div></div>
+        <div class="metric-card"><div class="metric-label">进行中处方</div><div class="metric-value">23</div><div class="metric-sub">3台机器人执行</div></div>
+        <div class="metric-card"><div class="metric-label">今日累计处方</div><div class="metric-value">284</div><div class="metric-sub">较昨日 +12%</div></div>
+        <div class="metric-card"><div class="metric-label">今日已完成</div><div class="metric-value success">261</div><div class="metric-sub">完成率 91.9%</div></div>
+        <div class="metric-card"><div class="metric-label">待处理报警</div><div class="metric-value danger">4</div><div class="metric-sub">最早 09:42</div></div>
+      </div>
+
+      <div class="grid-32">
+        <div class="card">
+          <div class="card-title">药房平面地图 — 12台药柜 + 5台机器人 <span style="font-weight:400;color:var(--color-text-secondary)">(点击查看详情)</span></div>
+          <div class="map-area">
+            <div class="map-grid">
+              <div class="map-item map-cabinet" data-id="A1" onclick="showCabinetOnMap('A1')">A1</div>
+              <div class="map-item map-cabinet" data-id="A2" onclick="showCabinetOnMap('A2')">A2</div>
+              <div class="map-item map-cabinet warn" data-id="B1" onclick="showCabinetOnMap('B1')">B1 ⚠</div>
+              <div class="map-item map-cabinet" data-id="B2" onclick="showCabinetOnMap('B2')">B2</div>
+              <div class="map-item map-cabinet" data-id="C1" onclick="showCabinetOnMap('C1')">C1</div>
+              <div class="map-item map-cabinet err" data-id="C2" onclick="showCabinetOnMap('C2')">C2 ✕</div>
+              <div class="map-item map-cabinet" data-id="D1" onclick="showCabinetOnMap('D1')">D1</div>
+              <div class="map-item map-cabinet" data-id="D2" onclick="showCabinetOnMap('D2')">D2</div>
+              <div class="map-item map-cabinet warn" data-id="E1" onclick="showCabinetOnMap('E1')">E1 ⚠</div>
+              <div class="map-item map-cabinet" data-id="E2" onclick="showCabinetOnMap('E2')">E2</div>
+              <div class="map-item map-cabinet" data-id="F1" onclick="showCabinetOnMap('F1')">F1</div>
+              <div class="map-item map-cabinet" data-id="F2" onclick="showCabinetOnMap('F2')">F2</div>
+            </div>
+            <div class="map-robots">
+              <div class="map-robot busy" title="R1 执行中" onclick="showRobotOnMap('R1')">R1</div>
+              <div class="map-robot idle" title="R2 待机" onclick="showRobotOnMap('R2')">R2</div>
+              <div class="map-robot busy" title="R3 执行中" onclick="showRobotOnMap('R3')">R3</div>
+              <div class="map-robot charging" title="R4 充电中" onclick="showRobotOnMap('R4')">R4</div>
+              <div class="map-robot busy" title="R5 执行中" onclick="showRobotOnMap('R5')">R5</div>
+            </div>
+          </div>
+          <div class="map-legend">
+            <span><span class="legend-dot" style="background:#B5D4F4"></span>药柜正常</span>
+            <span><span class="legend-dot" style="background:#FAC775"></span>预警</span>
+            <span><span class="legend-dot" style="background:#F7C1C1"></span>故障</span>
+            <span><span class="legend-dot" style="background:#9FE1CB;border-radius:50%"></span>机器人执行中</span>
+            <span><span class="legend-dot" style="background:#C0DD97;border-radius:50%"></span>待机</span>
+            <span><span class="legend-dot" style="background:#FAC775;border-radius:50%"></span>充电中</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">设备详情</div>
+          <div id="detail-panel" style="color:var(--color-text-secondary);font-size:12px;padding:10px 0">
+            点击地图中的药柜或机器人查看详细参数
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-title">进行中任务（前5条）</div>
+          <div class="task-item"><div class="dot dot-info"></div><div style="flex:1"><b>RX-20240322-0284</b> · 黄芪、当归等8味<br><span style="color:var(--color-text-secondary)">R3 执行中 · 预计剩余 2 min</span></div><span class="badge badge-info">进行中</span></div>
+          <div class="task-item"><div class="dot dot-info"></div><div style="flex:1"><b>RX-20240322-0283</b> · 党参、白术等6味<br><span style="color:var(--color-text-secondary)">R1 执行中 · 预计剩余 4 min</span></div><span class="badge badge-info">进行中</span></div>
+          <div class="task-item"><div class="dot dot-warning"></div><div style="flex:1"><b>RX-20240322-0281</b> · 熟地、山药等12味<br><span style="color:var(--color-text-secondary)">R5 执行中 · 超时 1 min ⚠</span></div><span class="badge badge-warning">超时</span></div>
+          <div class="task-item"><div class="dot dot-info"></div><div style="flex:1"><b>RX-20240322-0280</b> · 柴胡、白芍等5味<br><span style="color:var(--color-text-secondary)">R3 排队等待中</span></div><span class="badge badge-muted">待取药</span></div>
+          <div class="task-item"><div class="dot dot-success"></div><div style="flex:1"><b>RX-20240322-0279</b> · 7味 · 已完成<br><span style="color:var(--color-text-secondary)">耗时 6 min 28 sec</span></div><span class="badge badge-success">已完成</span></div>
+        </div>
+        <div class="card">
+          <div class="card-title">未处理报警（4条）</div>
+          <div class="task-item"><div class="dot dot-danger" style="margin-top:4px"></div><div style="flex:1"><b>C2柜通信故障</b><br><span style="color:var(--color-text-secondary)">已停止响应，需人工检查</span></div><span style="font-size:11px;color:var(--color-text-secondary)">09:42</span></div>
+          <div class="task-item"><div class="dot dot-warning" style="margin-top:4px"></div><div style="flex:1"><b>B1柜库存预警</b><br><span style="color:var(--color-text-secondary)">当归余量 &lt;15%，请及时补药</span></div><span style="font-size:11px;color:var(--color-text-secondary)">10:05</span></div>
+          <div class="task-item"><div class="dot dot-warning" style="margin-top:4px"></div><div style="flex:1"><b>E1柜湿度超限</b><br><span style="color:var(--color-text-secondary)">当前湿度 72%，超出阈值65%</span></div><span style="font-size:11px;color:var(--color-text-secondary)">10:18</span></div>
+          <div class="task-item"><div class="dot dot-danger" style="margin-top:4px"></div><div style="flex:1"><b>R4机器人低电量</b><br><span style="color:var(--color-text-secondary)">电量 12%，已自动转入充电模式</span></div><span style="font-size:11px;color:var(--color-text-secondary)">10:31</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ 设备状态 ─ -->
+    <div id="page-devices" class="page">
+      <div class="topbar">
+        <div class="page-title">设备状态</div>
+        <div class="topbar-right">
+          <span class="badge badge-success">12台药柜</span>
+          <span class="badge badge-info">5台机器人</span>
+          <span class="badge badge-danger">1台故障</span>
+        </div>
+      </div>
+      <div class="device-grid">
+        <div class="card">
+          <div class="card-title">药柜列表（12台）— 点击查看药斗详情</div>
+          <div class="device-list" id="cabinet-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">机器人列表（5台）</div>
+          <div id="robot-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ 数据报表 ─ -->
+    <div id="page-reports" class="page">
+      <div class="topbar">
+        <div class="page-title">数据报表</div>
+      </div>
+      <div class="filter-bar">
+        <select id="filter-time"><option>今日</option><option>昨日</option><option>本周</option><option>本月</option></select>
+        <select id="filter-type"><option>全部药品</option><option>补益类</option><option>清热类</option><option>活血类</option><option>化痰类</option></select>
+        <select id="filter-device"><option>全部设备</option><option>药柜A区</option><option>药柜B区</option><option>R1机器人</option><option>R2机器人</option><option>R3机器人</option></select>
+        <button class="btn-gen" onclick="showReportModal()">生成分析报告 ↗</button>
+      </div>
+      <div class="chart-row">
+        <div class="card">
+          <div class="card-title">今日调剂趋势（处方数/小时）</div>
+          <div class="chart-legend">
+            <span><span class="legend-sq" style="background:#378ADD"></span>处方量</span>
+          </div>
+          <div style="position:relative;height:200px"><canvas id="trendChart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">机器人效率对比（完成处方数）</div>
+          <div class="chart-legend">
+            <span><span class="legend-sq" style="background:#378ADD"></span>R1</span>
+            <span><span class="legend-sq" style="background:#C0DD97"></span>R2</span>
+            <span><span class="legend-sq" style="background:#9FE1CB"></span>R3</span>
+            <span><span class="legend-sq" style="background:#FAC775"></span>R4</span>
+            <span><span class="legend-sq" style="background:#85B7EB"></span>R5</span>
+          </div>
+          <div style="position:relative;height:200px"><canvas id="effChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">调剂明细（今日 · 共284张）</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>处方号</th><th>患者（脱敏）</th><th>药味数</th><th>执行机器人</th><th>耗时</th><th>创建时间</th><th>完成时间</th><th>状态</th></tr></thead>
+            <tbody>
+              <tr><td>RX-20240322-0284</td><td>王**（310***8823）</td><td>8</td><td>R3</td><td>执行中</td><td>10:35</td><td>—</td><td><span class="pill pill-progress">进行中</span></td></tr>
+              <tr><td>RX-20240322-0283</td><td>李**（440***3312）</td><td>6</td><td>R1</td><td>执行中</td><td>10:33</td><td>—</td><td><span class="pill pill-progress">进行中</span></td></tr>
+              <tr><td>RX-20240322-0282</td><td>陈**（330***7761）</td><td>10</td><td>R2</td><td>8m45s</td><td>10:21</td><td>10:29</td><td><span class="pill pill-done">已完成</span></td></tr>
+              <tr><td>RX-20240322-0281</td><td>张**（210***5541）</td><td>12</td><td>R5</td><td>超时</td><td>10:18</td><td>—</td><td><span class="pill pill-error">异常</span></td></tr>
+              <tr><td>RX-20240322-0280</td><td>刘**（320***9901）</td><td>5</td><td>排队</td><td>—</td><td>10:30</td><td>—</td><td><span class="pill pill-pending">待处理</span></td></tr>
+              <tr><td>RX-20240322-0279</td><td>赵**（110***4421）</td><td>7</td><td>R1</td><td>6m28s</td><td>10:15</td><td>10:21</td><td><span class="pill pill-done">已完成</span></td></tr>
+              <tr><td>RX-20240322-0278</td><td>孙**（610***2287）</td><td>9</td><td>R5</td><td>9m02s</td><td>10:07</td><td>10:15</td><td><span class="pill pill-done">已完成</span></td></tr>
+              <tr><td>RX-20240322-0277</td><td>周**（230***8814）</td><td>4</td><td>R2</td><td>5m18s</td><td>09:58</td><td>10:04</td><td><span class="pill pill-done">已完成</span></td></tr>
+              <tr><td>RX-20240322-0276</td><td>吴**（420***3398）</td><td>11</td><td>R3</td><td>9m44s</td><td>09:48</td><td>09:58</td><td><span class="pill pill-done">已完成</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ 药师管理 ─ -->
+    <div id="page-pharmacists" class="page">
+      <div class="topbar">
+        <div class="page-title">药师管理</div>
+        <div class="topbar-right">
+          <span class="badge badge-success">6人在线</span>
+          <span class="badge badge-muted">2人离线</span>
+        </div>
+      </div>
+      <div class="pharm-grid">
+        <div class="pharm-card"><div class="pharm-avatar online">张</div><div class="pharm-name">张伟华</div><div class="pharm-role">主任药师 · 监控台</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">在线时长</span><span style="font-weight:500">7h 32m</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日监管</span><span style="font-weight:500">261 单</span></div></div>
+        <div class="pharm-card"><div class="pharm-avatar online">李</div><div class="pharm-name">李淑芬</div><div class="pharm-role">药师 · 移动终端 #1</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">登录时间</span><span style="font-weight:500">08:02</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">48 单</span></div></div>
+        <div class="pharm-card"><div class="pharm-avatar online">王</div><div class="pharm-name">王建国</div><div class="pharm-role">药师 · 移动终端 #2</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">登录时间</span><span style="font-weight:500">08:05</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">52 单</span></div></div>
+        <div class="pharm-card"><div class="pharm-avatar online">陈</div><div class="pharm-name">陈晓明</div><div class="pharm-role">药师 · 移动终端 #3</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">登录时间</span><span style="font-weight:500">08:15</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">39 单</span></div></div>
+        <div class="pharm-card"><div class="pharm-avatar online">刘</div><div class="pharm-name">刘芳</div><div class="pharm-role">药师 · 移动终端 #4</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">登录时间</span><span style="font-weight:500">07:58</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">61 单</span></div></div>
+        <div class="pharm-card"><div class="pharm-avatar online">赵</div><div class="pharm-name">赵磊</div><div class="pharm-role">实习药师 · 移动终端 #5</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">登录时间</span><span style="font-weight:500">08:30</span></div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">22 单</span></div></div>
+        <div class="pharm-card offline"><div class="pharm-avatar offline">孙</div><div class="pharm-name">孙丽</div><div class="pharm-role">药师 · 离线</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">—</span></div></div>
+        <div class="pharm-card offline"><div class="pharm-avatar offline">吴</div><div class="pharm-name">吴志远</div><div class="pharm-role">药师 · 离线</div><div class="pharm-stat"><span style="color:var(--color-text-secondary)">今日完成</span><span style="font-weight:500">—</span></div></div>
+      </div>
+    </div>
+
+    <!-- ─ 药单列表 ─ -->
+    <div id="page-orders" class="page">
+      <div class="topbar">
+        <div class="page-title">药单列表</div>
+        <div class="topbar-right">共 <b>284</b> 张处方（今日）</div>
+      </div>
+      <div class="search-bar">
+        <input type="text" id="order-search" placeholder="按处方号或患者姓名搜索…" oninput="filterOrders(this.value)">
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table id="orders-table">
+            <thead><tr><th>处方号</th><th>患者信息（脱敏）</th><th>药味数</th><th>状态</th><th>预估时间</th><th>创建时间</th><th>完成时间</th></tr></thead>
+            <tbody>
+              <tr><td>RX-20240322-0284</td><td>王**（身份证 310***8823）</td><td>8</td><td><span class="pill pill-progress">进行中</span></td><td>~2min</td><td>10:35</td><td>—</td></tr>
+              <tr><td>RX-20240322-0283</td><td>李**（身份证 440***3312）</td><td>6</td><td><span class="pill pill-progress">进行中</span></td><td>~4min</td><td>10:33</td><td>—</td></tr>
+              <tr><td>RX-20240322-0282</td><td>陈**（身份证 330***7761）</td><td>10</td><td><span class="pill pill-done">已完成</span></td><td>—</td><td>10:21</td><td>10:29</td></tr>
+              <tr><td>RX-20240322-0281</td><td>张**（身份证 210***5541）</td><td>12</td><td><span class="pill pill-error">异常</span></td><td>超时</td><td>10:18</td><td>—</td></tr>
+              <tr><td>RX-20240322-0280</td><td>刘**（身份证 320***9901）</td><td>5</td><td><span class="pill pill-pending">待处理</span></td><td>~8min</td><td>10:30</td><td>—</td></tr>
+              <tr><td>RX-20240322-0279</td><td>赵**（身份证 110***4421）</td><td>7</td><td><span class="pill pill-done">已完成</span></td><td>—</td><td>10:15</td><td>10:21</td></tr>
+              <tr><td>RX-20240322-0278</td><td>孙**（身份证 610***2287）</td><td>9</td><td><span class="pill pill-done">已完成</span></td><td>—</td><td>10:07</td><td>10:15</td></tr>
+              <tr><td>RX-20240322-0277</td><td>周**（身份证 230***8814）</td><td>4</td><td><span class="pill pill-done">已完成</span></td><td>—</td><td>09:58</td><td>10:04</td></tr>
+              <tr><td>RX-20240322-0276</td><td>吴**（身份证 420***3398）</td><td>11</td><td><span class="pill pill-done">已完成</span></td><td>—</td><td>09:48</td><td>09:58</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ══ 药斗详情弹窗 ══ -->
+<div id="cabinet-modal" class="modal-overlay" style="display:none" onclick="closeModalOnBg(event,'cabinet-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-cabinet-title">药柜详情</div>
+      <button class="modal-close" onclick="closeModal('cabinet-modal')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">8×8 药斗布局 · 边框颜色表示余量状态</div>
+    <div class="drawer-grid" id="drawer-grid"></div>
+    <div style="display:flex;gap:14px;margin-top:12px;font-size:11px">
+      <span style="color:#3B6D11">▪ 正常（>30%）</span>
+      <span style="color:#633806">▪ 预警（10–30%）</span>
+      <span style="color:#791F1F">▪ 即将耗尽（<10%）</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ 分析报告弹窗 ══ -->
+<div id="report-modal" class="modal-overlay" style="display:none" onclick="closeModalOnBg(event,'report-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">智能分析报告</div>
+      <button class="modal-close" onclick="closeModal('report-modal')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px" id="report-timestamp"></div>
+    <div class="report-box">
+      <div class="report-box-title">建议 1 · 库存预警处理</div>
+      <p>当归（B1柜）余量已低于15%，按今日平均用量估算，预计在本日14:00前耗尽。建议立即安排一线药师进行补药操作。</p>
+    </div>
+    <div class="report-box">
+      <div class="report-box-title">建议 2 · 机器人效率优化</div>
+      <p>R2机器人今日完成量（31单）低于平均值（46单）32.6%。建议检查其任务分配策略，或排查行走路径是否存在绕行问题。</p>
+    </div>
+    <div class="report-box">
+      <div class="report-box-title">建议 3 · 故障优先处置</div>
+      <p>C2柜通信故障持续已超过60分钟，为今日最长未处理异常。该药柜含15个药味，故障期间由相邻药柜代调，效率损失约8%。建议优先派人现场排查。</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const cabinetData = [
+  {id:'A1',status:'ok',fill:82,temp:22,hum:55},
+  {id:'A2',status:'ok',fill:71,temp:23,hum:54},
+  {id:'B1',status:'warn',fill:18,temp:22,hum:58},
+  {id:'B2',status:'ok',fill:65,temp:21,hum:56},
+  {id:'C1',status:'ok',fill:90,temp:22,hum:53},
+  {id:'C2',status:'err',fill:0,temp:0,hum:0},
+  {id:'D1',status:'ok',fill:77,temp:23,hum:55},
+  {id:'D2',status:'ok',fill:84,temp:22,hum:54},
+  {id:'E1',status:'warn',fill:45,temp:24,hum:72},
+  {id:'E2',status:'ok',fill:61,temp:22,hum:56},
+  {id:'F1',status:'ok',fill:88,temp:21,hum:53},
+  {id:'F2',status:'ok',fill:76,temp:23,hum:55},
+];
+const robotData = [
+  {id:'R1',status:'busy',battery:78,order:'RX-0283',task:'取当归 40g',load:'280/500g'},
+  {id:'R2',status:'idle',battery:92,order:'—',task:'待机中',load:'0/500g'},
+  {id:'R3',status:'busy',battery:55,order:'RX-0284',task:'取黄芪 30g',load:'95/500g'},
+  {id:'R4',status:'charging',battery:12,order:'—',task:'充电中（坞站）',load:'0/500g'},
+  {id:'R5',status:'busy',battery:44,order:'RX-0281',task:'取熟地 50g',load:'210/500g'},
+];
+const herbs = ['当归','黄芪','党参','白术','茯苓','甘草','熟地','山药','白芍','柴胡','川芎','丹参','枸杞','菊花','金银花','连翘','板蓝根','半夏','陈皮','厚朴','桂枝','麻黄','薄荷','牛膝','杜仲','续断','骨碎补','鸡血藤','三七','红花','桃仁','莪术','延胡索','没药','乳香','苏木','血竭','穿山甲','水蛭','地龙','僵蚕','全蝎','蜈蚣','蟾酥','斑蝥','牛黄','麝香','冰片','朱砂','雄黄','石膏','知母','栀子','黄连','黄芩','黄柏','龙胆','苦参','白头翁','败酱草','鱼腥草','砂仁','豆蔻'];
+
+// ── Navigation ──
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  el.classList.add('active');
+  if (id === 'reports') initCharts();
+  if (id === 'devices') initDevices();
+}
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('zh-CN', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── Map detail panel ──
+function showCabinetOnMap(id) {
+  const c = cabinetData.find(x => x.id === id);
+  const panel = document.getElementById('detail-panel');
+  if (!c) return;
+  const statusMap = {ok:'正常', warn:'预警', err:'故障'};
+  const badgeMap  = {ok:'badge-success', warn:'badge-warning', err:'badge-danger'};
+  panel.innerHTML = `
+    <div class="detail-row"><span class="detail-label">编号</span><b>${c.id}柜</b></div>
+    <div class="detail-row"><span class="detail-label">状态</span><span class="badge ${badgeMap[c.status]}">${statusMap[c.status]}</span></div>
+    ${c.status !== 'err' ? `
+    <div class="detail-row"><span class="detail-label">库存余量</span><b>${c.fill}%</b></div>
+    <div class="detail-row"><span class="detail-label">温度</span>${c.temp}°C</div>
+    <div class="detail-row"><span class="detail-label">湿度</span>${c.hum}%${c.hum > 65 ? ' <span class="badge badge-warning">超限</span>' : ''}</div>
+    <button onclick="openCabinetModal('${id}')" style="margin-top:12px;width:100%;padding:7px;border:0.5px solid var(--color-border-strong);border-radius:var(--radius-md);cursor:pointer;background:var(--color-bg-secondary);color:var(--color-text-primary);font-size:12px;font-family:var(--font)">
+      查看8×8药斗详情 →
+    </button>` : `
+    <div class="detail-row"><span style="color:var(--color-text-danger)">通信中断，无法读取数据</span></div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px">建议：派一线药师前往现场排查</div>`}
+  `;
+}
+
+function showRobotOnMap(id) {
+  const r = robotData.find(x => x.id === id);
+  const panel = document.getElementById('detail-panel');
+  if (!r) return;
+  const statusMap = {busy:'执行中', idle:'待机中', charging:'充电中'};
+  const badgeMap  = {busy:'badge-info', idle:'badge-success', charging:'badge-warning'};
+  const bcolor = r.battery > 50 ? '#639922' : r.battery > 20 ? '#BA7517' : '#A32D2D';
+  panel.innerHTML = `
+    <div class="detail-row"><span class="detail-label">编号</span><b>${r.id}</b></div>
+    <div class="detail-row"><span class="detail-label">状态</span><span class="badge ${badgeMap[r.status]}">${statusMap[r.status]}</span></div>
+    <div class="detail-row"><span class="detail-label">电量</span><span style="color:${bcolor};font-weight:600">${r.battery}%</span></div>
+    <div class="detail-row"><span class="detail-label">当前任务</span>${r.task}</div>
+    <div class="detail-row"><span class="detail-label">关联订单</span>${r.order}</div>
+    <div class="detail-row"><span class="detail-label">当前载重</span>${r.load}</div>
+  `;
+}
+
+// ── Devices page ──
+function initDevices() {
+  const cl = document.getElementById('cabinet-list');
+  cl.innerHTML = '';
+  cabinetData.forEach(c => {
+    const color = {ok:'#639922', warn:'#BA7517', err:'#A32D2D'}[c.status];
+    const label = {ok:'正常', warn:'预警', err:'故障'}[c.status];
+    const fc    = c.fill > 50 ? 'fill-green' : c.fill > 20 ? 'fill-amber' : 'fill-red';
+    cl.innerHTML += `
+      <div class="device-row" onclick="openCabinetModal('${c.id}')">
+        <span style="width:7px;height:7px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="device-name">${c.id}柜</span>
+            <span style="font-size:11px;color:var(--color-text-secondary)">${c.status === 'err' ? '通信故障' : '余量 ' + c.fill + '%'}</span>
+          </div>
+          ${c.status !== 'err' ? `
+          <div class="progress-bar"><div class="progress-fill ${fc}" style="width:${c.fill}%"></div></div>
+          <div style="font-size:10px;color:var(--color-text-secondary);margin-top:2px">温度 ${c.temp}°C · 湿度 ${c.hum}%${c.hum > 65 ? ' ⚠' : ''}</div>` : ''}
+        </div>
+        <span class="badge ${({ok:'badge-success',warn:'badge-warning',err:'badge-danger'})[c.status]}">${label}</span>
+      </div>`;
+  });
+
+  const rl = document.getElementById('robot-list');
+  rl.innerHTML = '';
+  robotData.forEach(r => {
+    const sl = {busy:'执行中', idle:'待机', charging:'充电中'}[r.status];
+    const sb = {busy:'badge-info', idle:'badge-success', charging:'badge-warning'}[r.status];
+    const bc = r.battery > 50 ? '#639922' : r.battery > 20 ? '#BA7517' : '#A32D2D';
+    const fc = r.battery > 50 ? 'fill-green' : r.battery > 20 ? 'fill-amber' : 'fill-red';
+    rl.innerHTML += `
+      <div class="robot-card">
+        <div class="robot-header"><b>${r.id} 机器人</b><span class="badge ${sb}">${sl}</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px">
+          <span style="color:var(--color-text-secondary)">电量</span>
+          <span style="color:${bc};font-weight:600">${r.battery}%</span>
+        </div>
+        <div class="progress-bar" style="margin-bottom:8px"><div class="progress-fill ${fc}" style="width:${r.battery}%"></div></div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:2px">当前任务：${r.task}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:2px">关联订单：${r.order}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">载重：${r.load}</div>
+        <div class="robot-actions">
+          <button class="btn-sm charge">强制充电</button>
+          <button class="btn-sm">紧急停止</button>
+        </div>
+      </div>`;
+  });
+}
+
+// ── Cabinet drawer modal ──
+function openCabinetModal(id) {
+  const c = cabinetData.find(x => x.id === id);
+  if (!c || c.status === 'err') return;
+  document.getElementById('modal-cabinet-title').textContent = id + '柜 — 8×8 药斗详情';
+  const g = document.getElementById('drawer-grid');
+  g.innerHTML = '';
+  for (let i = 0; i < 64; i++) {
+    const herb = herbs[i] || '空';
+    const pct = Math.floor(Math.random() * 100);
+    const cls = pct > 30 ? 'cell-ok' : pct > 10 ? 'cell-warn' : 'cell-low';
+    g.innerHTML += `<div class="${cls} drawer-cell" title="${herb} ${pct}%"><span>${herb.substring(0,2)}</span><span>${pct}%</span></div>`;
+  }
+  document.getElementById('cabinet-modal').style.display = 'flex';
+}
+
+// ── Charts ──
+let chartsInited = false;
+function initCharts() {
+  if (chartsInited) return;
+  chartsInited = true;
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const gridColor  = isDark ? 'rgba(255,255,255,.06)' : 'rgba(0,0,0,.06)';
+  const labelColor = isDark ? '#b4b2a9' : '#5f5e5a';
+
+  new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: ['8h','9h','10h','11h','12h','13h','14h','15h','16h'],
+      datasets: [{
+        label:'处方数', data:[12,28,35,41,38,44,52,48,45],
+        borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,.1)',
+        fill:true, tension:.4, pointRadius:3, pointBackgroundColor:'#378ADD'
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{beginAtZero:true, ticks:{stepSize:10, color:labelColor}, grid:{color:gridColor}},
+        x:{ticks:{color:labelColor}, grid:{display:false}}
+      }
+    }
+  });
+
+  new Chart(document.getElementById('effChart'), {
+    type: 'bar',
+    data: {
+      labels: ['R1','R2','R3','R4','R5'],
+      datasets: [{
+        label:'完成处方数',
+        data:[58,31,62,8,52],
+        backgroundColor:['#378ADD','#C0DD97','#9FE1CB','#FAC775','#85B7EB'],
+        borderRadius:4
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{beginAtZero:true, ticks:{color:labelColor}, grid:{color:gridColor}},
+        x:{ticks:{color:labelColor}, grid:{display:false}}
+      }
+    }
+  });
+}
+
+// ── Report modal ──
+function showReportModal() {
+  const now = new Date();
+  document.getElementById('report-timestamp').textContent =
+    '基于当前筛选数据自动生成 · ' + now.toLocaleString('zh-CN');
+  document.getElementById('report-modal').style.display = 'flex';
+}
+
+// ── Orders search ──
+function filterOrders(v) {
+  const rows = document.querySelectorAll('#orders-table tbody tr');
+  const q = v.toLowerCase();
+  rows.forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+// ── Modal helpers ──
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function closeModalOnBg(e, id) { if (e.target.id === id) closeModal(id); }
+
+// ── Init on load ──
+initDevices();
+</script>
+</body>
+</html>
