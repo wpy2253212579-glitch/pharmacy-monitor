@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>中药调剂 — 一线药师终端</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg:       #f2f1ec;
+  --surface:  #ffffff;
+  --surface2: #f5f4ef;
+  --border:   rgba(0,0,0,.10);
+  --border2:  rgba(0,0,0,.18);
+  --text:     #1a1a18;
+  --text2:    #5f5e5a;
+  --text3:    #9e9c97;
+  --accent:   #378ADD;
+  --green:    #3b6d11; --green-bg: #eaf3de; --green-bd: #639922;
+  --amber:    #633806; --amber-bg: #faeeda; --amber-bd: #ba7517;
+  --red:      #791f1f; --red-bg:   #fcebeb; --red-bd:   #a32d2d;
+  --blue:     #185fa5; --blue-bg:  #e6f1fb; --blue-bd:  #378add;
+  --r: 10px; --r-sm: 7px;
+  --font: 'PingFang SC','Microsoft YaHei','Helvetica Neue',Arial,sans-serif;
+  --nav-h: 60px;
+  --header-h: 52px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141412; --surface: #1e1e1c; --surface2: #282826;
+    --border: rgba(255,255,255,.09); --border2: rgba(255,255,255,.18);
+    --text: #f0ede6; --text2: #b4b2a9; --text3: #6e6d69;
+    --green: #c0dd97; --green-bg: #17340a; --green-bd: #639922;
+    --amber: #fac775; --amber-bg: #412402; --amber-bd: #ba7517;
+    --red:   #f09595; --red-bg:   #501313; --red-bd:   #a32d2d;
+    --blue:  #85b7eb; --blue-bg:  #0c2a42; --blue-bd:  #378add;
+  }
+}
+
+html, body { height: 100%; overflow: hidden; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; }
+
+/* ── App shell ── */
+.app { display: flex; flex-direction: column; height: 100vh; max-width: 430px; margin: 0 auto; position: relative; background: var(--bg); }
+
+/* ── Header ── */
+.header {
+  height: var(--header-h); flex-shrink: 0;
+  background: var(--surface); border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 10px;
+  position: relative; z-index: 10;
+}
+.header-back { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; cursor: pointer; color: var(--accent); flex-shrink: 0; }
+.header-back:active { background: var(--surface2); }
+.header-back svg { width: 20px; height: 20px; }
+.header-title { font-size: 16px; font-weight: 600; flex: 1; }
+.header-sub { font-size: 11px; color: var(--text2); }
+.header-action { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text2); position: relative; }
+.header-action:active { opacity: .6; }
+.header-action svg { width: 22px; height: 22px; }
+.badge-dot { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--red-bd); border: 2px solid var(--surface); }
+
+/* ── Scroll content ── */
+.scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 8px; }
+.scroll::-webkit-scrollbar { display: none; }
+
+/* ── Bottom nav ── */
+.bottom-nav {
+  height: var(--nav-h); flex-shrink: 0;
+  background: var(--surface); border-top: 0.5px solid var(--border);
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nav-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; cursor: pointer; color: var(--text3); transition: color .15s; padding: 6px 0;
+}
+.nav-btn.active { color: var(--accent); }
+.nav-btn:active { opacity: .7; }
+.nav-btn svg { width: 22px; height: 22px; }
+.nav-btn span { font-size: 10px; font-weight: 500; }
+.nav-badge { position: relative; }
+.nav-badge-dot { position: absolute; top: -2px; right: -6px; width: 7px; height: 7px; border-radius: 50%; background: var(--red-bd); border: 1.5px solid var(--surface); }
+
+/* ── Page containers ── */
+.page { display: none; flex-direction: column; height: 100%; }
+.page.active { display: flex; }
+
+/* ── Cards / sections ── */
+.section { padding: 12px 14px 0; }
+.card { background: var(--surface); border-radius: var(--r); border: 0.5px solid var(--border); overflow: hidden; }
+.card + .card { margin-top: 10px; }
+.section-label { font-size: 11px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+
+/* ── Task cards ── */
+.task-card {
+  background: var(--surface); border-radius: var(--r); border: 0.5px solid var(--border);
+  padding: 14px; margin-bottom: 10px; cursor: pointer; transition: opacity .15s; display: flex; gap: 12px; align-items: flex-start;
+}
+.task-card:active { opacity: .75; }
+.task-card.urgent { background: var(--red-bg); border-color: var(--red-bd); }
+.task-card.high   { background: var(--red-bg); border-color: var(--red-bd); }
+.task-card.mid    { background: var(--amber-bg); border-color: var(--amber-bd); }
+.task-card.normal { background: var(--surface); }
+.task-icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.task-icon svg { width: 20px; height: 20px; }
+.icon-robot   { background: var(--red-bg); color: var(--red); }
+.icon-cabinet { background: var(--amber-bg); color: var(--amber); }
+.icon-check   { background: var(--green-bg); color: var(--green); }
+.task-body { flex: 1; min-width: 0; }
+.task-title { font-weight: 600; font-size: 14px; margin-bottom: 3px; }
+.task-desc  { font-size: 12px; color: var(--text2); line-height: 1.5; }
+.task-meta  { display: flex; align-items: center; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.task-device { font-size: 11px; font-weight: 600; background: var(--surface2); color: var(--text2); padding: 2px 7px; border-radius: 5px; }
+.task-time   { font-size: 11px; color: var(--text3); }
+.priority-tag { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; }
+.pt-urgent, .pt-high { background: var(--red-bg); color: var(--red); }
+.pt-mid  { background: var(--amber-bg); color: var(--amber); }
+
+/* ── Status bar ── */
+.status-bar { display: flex; gap: 8px; padding: 12px 14px 4px; flex-wrap: wrap; }
+.stat-chip { display: flex; align-items: center; gap: 5px; background: var(--surface); border: 0.5px solid var(--border); border-radius: 20px; padding: 5px 10px; font-size: 12px; }
+.stat-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: var(--green-bd); }
+.dot-amber { background: var(--amber-bd); }
+.dot-red   { background: var(--red-bd); }
+
+/* ── Cabinet detail ── */
+.cabinet-header { padding: 16px 14px 12px; background: var(--surface); border-bottom: 0.5px solid var(--border); }
+.cabinet-id { font-size: 22px; font-weight: 700; }
+.cabinet-loc { font-size: 13px; color: var(--text2); margin-top: 2px; }
+.cabinet-stats { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.c-stat { background: var(--surface2); border-radius: var(--r-sm); padding: 8px 12px; text-align: center; flex: 1; min-width: 70px; }
+.c-stat-val { font-size: 18px; font-weight: 700; }
+.c-stat-lbl { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+.drawer-section { padding: 14px; }
+.drawer-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.drawer-cell {
+  aspect-ratio: 1; border-radius: 6px; border: 2px solid;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-size: 8px; text-align: center; cursor: pointer; padding: 3px; line-height: 1.3;
+  transition: transform .1s;
+}
+.drawer-cell:active { transform: scale(.93); }
+.drawer-cell.ok     { background: var(--green-bg); border-color: var(--green-bd); color: var(--green); }
+.drawer-cell.warn   { background: var(--amber-bg); border-color: var(--amber-bd); color: var(--amber); }
+.drawer-cell.low    { background: var(--red-bg);   border-color: var(--red-bd);   color: var(--red); }
+.drawer-cell.target { border-color: var(--accent) !important; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+.legend-row { display: flex; gap: 14px; padding: 0 14px 12px; font-size: 11px; color: var(--text2); flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 4px; }
+.legend-sq { width: 10px; height: 10px; border-radius: 2px; border: 1.5px solid; }
+.lsq-ok   { background: var(--green-bg); border-color: var(--green-bd); }
+.lsq-warn { background: var(--amber-bg); border-color: var(--amber-bd); }
+.lsq-low  { background: var(--red-bg);   border-color: var(--red-bd); }
+
+/* ── Robot detail ── */
+.robot-status-card { margin: 14px; background: var(--surface); border-radius: var(--r); border: 0.5px solid var(--border); padding: 16px; }
+.robot-id-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.robot-id { font-size: 20px; font-weight: 700; }
+.robot-stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.r-stat { background: var(--surface2); border-radius: var(--r-sm); padding: 10px 8px; text-align: center; }
+.r-stat-val { font-size: 18px; font-weight: 700; }
+.r-stat-lbl { font-size: 10px; color: var(--text2); margin-top: 2px; }
+
+.joint-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 0 14px; }
+.joint-cell { background: var(--surface); border-radius: var(--r-sm); border: 2px solid; padding: 12px 8px; text-align: center; }
+.joint-cell.ok  { border-color: var(--green-bd); }
+.joint-cell.err { border-color: var(--red-bd); background: var(--red-bg); }
+.joint-name { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.joint-status { font-size: 11px; color: var(--text2); }
+.joint-cell.err .joint-status { color: var(--red); }
+.joint-code { font-size: 10px; color: var(--red); font-weight: 600; margin-top: 3px; font-family: monospace; }
+
+.fault-card { margin: 14px; background: var(--red-bg); border: 0.5px solid var(--red-bd); border-radius: var(--r); padding: 14px; }
+.fault-title { font-weight: 600; color: var(--red); font-size: 13px; margin-bottom: 6px; }
+.fault-desc  { font-size: 12px; color: var(--text); line-height: 1.6; }
+.fault-suggest { margin-top: 8px; font-size: 12px; color: var(--text2); }
+
+/* ── Confirm pages ── */
+.confirm-body { padding: 14px; }
+.confirm-card { background: var(--surface); border-radius: var(--r); border: 0.5px solid var(--border); padding: 16px; margin-bottom: 12px; }
+.confirm-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 8px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+.confirm-row:last-child { border: none; }
+.confirm-label { color: var(--text2); }
+.confirm-value { font-weight: 500; text-align: right; max-width: 60%; }
+.confirm-highlight { background: var(--blue-bg); border-color: var(--blue-bd); }
+.confirm-note { background: var(--surface2); border-radius: var(--r-sm); padding: 10px 12px; font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: 12px; }
+
+textarea {
+  width: 100%; padding: 10px 12px; border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm); font-family: var(--font); font-size: 13px;
+  background: var(--surface); color: var(--text); resize: none; outline: none;
+  min-height: 90px; line-height: 1.6;
+}
+textarea:focus { border-color: var(--accent); }
+
+.radio-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.radio-item {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--surface); border-radius: var(--r-sm); border: 0.5px solid var(--border);
+  cursor: pointer; transition: border-color .15s;
+}
+.radio-item.selected { border-color: var(--accent); background: var(--blue-bg); }
+.radio-circle { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.radio-item.selected .radio-circle { border-color: var(--accent); background: var(--accent); }
+.radio-dot { width: 7px; height: 7px; border-radius: 50%; background: white; display: none; }
+.radio-item.selected .radio-dot { display: block; }
+.radio-label { font-size: 13px; font-weight: 500; }
+.radio-desc  { font-size: 11px; color: var(--text2); margin-top: 1px; }
+
+/* ── Scan page ── */
+.scan-viewfinder {
+  margin: 20px 14px; border-radius: 16px; overflow: hidden;
+  background: #111; aspect-ratio: 1; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.scan-frame { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.scan-box { width: 60%; aspect-ratio: 1; position: relative; }
+.scan-box::before, .scan-box::after { content: ''; position: absolute; width: 22px; height: 22px; border-color: white; border-style: solid; }
+.scan-box::before { top: 0; left: 0; border-width: 3px 0 0 3px; border-radius: 4px 0 0 0; }
+.scan-box::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 4px 0 0; }
+.scan-box-b::before, .scan-box-b::after { content: ''; position: absolute; width: 22px; height: 22px; border-color: white; border-style: solid; }
+.scan-box-b::before { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-radius: 0 0 0 4px; }
+.scan-box-b::after  { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 4px 0; }
+.scan-line { position: absolute; left: 0; right: 0; height: 2px; background: rgba(55,138,221,.8); animation: scanmove 2s linear infinite; }
+@keyframes scanmove { 0%{top:10%} 100%{top:90%} }
+.scan-grid-lines { position: absolute; inset: 0; opacity: .08; background-image: linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px); background-size: 30px 30px; }
+.scan-hint { text-align: center; padding: 10px 14px; font-size: 13px; color: var(--text2); }
+.scan-btn-row { display: flex; gap: 10px; padding: 0 14px; margin-top: 6px; }
+.scan-shortcut { flex: 1; background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--r); padding: 14px 10px; text-align: center; cursor: pointer; }
+.scan-shortcut:active { opacity: .7; }
+.scan-shortcut svg { width: 24px; height: 24px; color: var(--accent); margin-bottom: 6px; }
+.scan-shortcut-label { font-size: 12px; font-weight: 500; }
+.scan-shortcut-sub   { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* ── Alarm drawer ── */
+.alarm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 300; display: none; }
+.alarm-overlay.open { display: block; }
+.alarm-drawer {
+  position: fixed; top: 0; right: -100%; bottom: 0; width: 88%; max-width: 360px;
+  background: var(--surface); z-index: 301;
+  display: flex; flex-direction: column;
+  transition: right .28s cubic-bezier(.4,0,.2,1);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.alarm-drawer.open { right: 0; }
+.alarm-drawer-header { padding: 16px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.alarm-drawer-title { font-size: 16px; font-weight: 600; }
+.alarm-drawer-actions { display: flex; gap: 8px; }
+.alarm-action-btn { font-size: 12px; padding: 4px 10px; border: 0.5px solid var(--border2); border-radius: 6px; cursor: pointer; background: none; color: var(--text2); font-family: var(--font); }
+.alarm-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text2); border-radius: 50%; }
+.alarm-close:active { background: var(--surface2); }
+.alarm-list { flex: 1; overflow-y: auto; padding: 10px 14px; }
+.alarm-item { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-bottom: 0.5px solid var(--border); cursor: pointer; }
+.alarm-item:last-child { border: none; }
+.alarm-item:active { opacity: .7; }
+.alarm-unread .alarm-device { position: relative; }
+.alarm-unread .alarm-device::after { content: ''; position: absolute; top: -2px; right: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--red-bd); }
+.alarm-device { font-size: 11px; font-weight: 600; background: var(--surface2); color: var(--text2); padding: 2px 6px; border-radius: 5px; flex-shrink: 0; margin-top: 2px; }
+.alarm-device.alarm-r { background: var(--red-bg); color: var(--red); }
+.alarm-device.alarm-a { background: var(--amber-bg); color: var(--amber); }
+.alarm-content { flex: 1; }
+.alarm-title { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.alarm-time  { font-size: 11px; color: var(--text3); }
+
+/* ── Bottom action button ── */
+.action-bar { padding: 12px 14px; background: var(--surface); border-top: 0.5px solid var(--border); }
+.btn-primary {
+  width: 100%; padding: 14px; border-radius: var(--r); border: none;
+  background: var(--accent); color: white; font-size: 15px; font-weight: 600;
+  font-family: var(--font); cursor: pointer; transition: opacity .15s;
+}
+.btn-primary:active { opacity: .8; }
+.btn-primary.danger { background: var(--red-bd); }
+.btn-primary.success { background: var(--green-bd); }
+.btn-secondary {
+  width: 100%; padding: 12px; border-radius: var(--r);
+  border: 0.5px solid var(--border2); background: var(--surface2);
+  color: var(--text); font-size: 14px; font-weight: 500;
+  font-family: var(--font); cursor: pointer; margin-top: 8px; transition: opacity .15s;
+}
+.btn-secondary:active { opacity: .7; }
+.btn-row { display: flex; gap: 10px; }
+.btn-row .btn-primary, .btn-row .btn-secondary { margin-top: 0; }
+
+/* ── Half-sheet modal ── */
+.sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 200; display: none; }
+.sheet-overlay.open { display: block; }
+.sheet {
+  position: fixed; bottom: -100%; left: 0; right: 0;
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  z-index: 201; transition: bottom .28s cubic-bezier(.4,0,.2,1);
+  padding: 0 0 env(safe-area-inset-bottom);
+  max-height: 70vh; overflow-y: auto;
+}
+.sheet.open { bottom: 0; }
+.sheet-handle { width: 36px; height: 4px; background: var(--border2); border-radius: 2px; margin: 12px auto 6px; }
+.sheet-title { font-size: 16px; font-weight: 600; padding: 8px 16px 14px; border-bottom: 0.5px solid var(--border); }
+.sheet-actions { padding: 8px 0; }
+.sheet-action {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  cursor: pointer; font-size: 15px; transition: background .1s;
+}
+.sheet-action:active { background: var(--surface2); }
+.sheet-action svg { width: 22px; height: 22px; color: var(--accent); flex-shrink: 0; }
+.sheet-action.danger { color: var(--red); }
+.sheet-action.danger svg { color: var(--red); }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(10px);
+  background: rgba(0,0,0,.82); color: white; padding: 10px 18px; border-radius: 22px;
+  font-size: 13px; white-space: nowrap; z-index: 500; opacity: 0;
+  transition: opacity .2s, transform .2s; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Misc ── */
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 500; }
+.pill-green { background: var(--green-bg); color: var(--green); }
+.pill-amber { background: var(--amber-bg); color: var(--amber); }
+.pill-red   { background: var(--red-bg);   color: var(--red); }
+.pill-blue  { background: var(--blue-bg);  color: var(--blue); }
+
+.divider { height: 0.5px; background: var(--border); margin: 0 14px; }
+.spacer  { height: 10px; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ════════════════════════════
+       PAGE: 任务列表（首页）
+  ════════════════════════════ -->
+  <div id="pg-tasks" class="page active">
+    <div class="header">
+      <div style="flex:1">
+        <div class="header-title">任务列表</div>
+        <div class="header-sub">李淑芬 · 一线药师</div>
+      </div>
+      <div class="header-action" onclick="openAlarmDrawer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="badge-dot"></div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="status-bar">
+        <div class="stat-chip"><div class="stat-dot dot-red"></div>机器人故障 1</div>
+        <div class="stat-chip"><div class="stat-dot dot-red"></div>高优先补药 2</div>
+        <div class="stat-chip"><div class="stat-dot dot-amber"></div>中优先补药 3</div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">紧急 — 机器人故障</div>
+        <div class="task-card urgent" onclick="goTo('pg-robot')">
+          <div class="task-icon icon-robot">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M9 8V5M15 8V5M12 3v2M9 14l2 2 4-4"/><circle cx="9" cy="13" r=".5" fill="currentColor"/><circle cx="15" cy="13" r=".5" fill="currentColor"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">R3 机器人故障</div>
+            <div class="task-desc">关节 J2 检测到异常扭矩，已停止作业，需现场确认</div>
+            <div class="task-meta">
+              <span class="task-device">R3</span>
+              <span class="priority-tag pt-urgent">紧急</span>
+              <span class="task-time">10:31</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">高优先 — 补药任务</div>
+        <div class="task-card high" onclick="goTo('pg-cabinet','B1','3')">
+          <div class="task-icon icon-cabinet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">B1柜 — 当归补药</div>
+            <div class="task-desc">当归（第3排第2格）余量 11%，缺药超过 30%</div>
+            <div class="task-meta">
+              <span class="task-device">B1 · 3-2</span>
+              <span class="priority-tag pt-high">高</span>
+              <span class="task-time">10:05</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-card high" onclick="goTo('pg-cabinet','E1','7')">
+          <div class="task-icon icon-cabinet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">E1柜 — 黄芪补药</div>
+            <div class="task-desc">黄芪（第7排第4格）余量 8%，缺药超过 30%</div>
+            <div class="task-meta">
+              <span class="task-device">E1 · 7-4</span>
+              <span class="priority-tag pt-high">高</span>
+              <span class="task-time">10:18</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">中优先 — 补药任务</div>
+        <div class="task-card mid" onclick="goTo('pg-cabinet','A2')">
+          <div class="task-icon icon-cabinet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">A2柜 — 多格补药</div>
+            <div class="task-desc">党参、茯苓、白术 余量 20–28%，缺药 15–30%</div>
+            <div class="task-meta">
+              <span class="task-device">A2</span>
+              <span class="priority-tag pt-mid">中</span>
+              <span class="task-time">09:55</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-card mid" onclick="goTo('pg-cabinet','D1')">
+          <div class="task-icon icon-cabinet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">D1柜 — 多格补药</div>
+            <div class="task-desc">半夏、陈皮 余量 25%，缺药约 25%</div>
+            <div class="task-meta">
+              <span class="task-device">D1</span>
+              <span class="priority-tag pt-mid">中</span>
+              <span class="task-time">10:02</span>
+            </div>
+          </div>
+        </div>
+        <div class="task-card mid" onclick="goTo('pg-cabinet','F2')">
+          <div class="task-icon icon-cabinet">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+          </div>
+          <div class="task-body">
+            <div class="task-title">F2柜 — 甘草补药</div>
+            <div class="task-desc">甘草余量 22%，建议今日内完成补药</div>
+            <div class="task-meta">
+              <span class="task-device">F2</span>
+              <span class="priority-tag pt-mid">中</span>
+              <span class="task-time">10:10</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-btn active" onclick="switchTab('tasks',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>任务</span>
+      </div>
+      <div class="nav-btn" onclick="goTo('pg-scan'); switchTab('scan',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M15 3h4a2 2 0 012 2v4M15 21h4a2 2 0 002-2v-4"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+        <span>扫码</span>
+      </div>
+      <div class="nav-btn nav-badge" onclick="openAlarmDrawer(); switchTab('alarm',this)">
+        <div style="position:relative;display:inline-block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="nav-badge-dot"></div>
+        </div>
+        <span>报警</span>
+      </div>
+      <div class="nav-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>我的</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════
+       PAGE: 药柜详情
+  ════════════════════════════ -->
+  <div id="pg-cabinet" class="page">
+    <div class="header">
+      <div class="header-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </div>
+      <div style="flex:1">
+        <div class="header-title" id="cabinet-title">B1 药柜</div>
+        <div class="header-sub" id="cabinet-loc">药房西区 · 第2排</div>
+      </div>
+      <div class="header-action" onclick="openAlarmDrawer()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="badge-dot"></div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="cabinet-header">
+        <div class="cabinet-stats">
+          <div class="c-stat"><div class="c-stat-val" style="color:var(--red)">3</div><div class="c-stat-lbl">缺药格</div></div>
+          <div class="c-stat"><div class="c-stat-val" style="color:var(--amber)">5</div><div class="c-stat-lbl">预警格</div></div>
+          <div class="c-stat"><div class="c-stat-val" style="color:var(--green)">32</div><div class="c-stat-lbl">正常格</div></div>
+          <div class="c-stat"><div class="c-stat-val">22°C</div><div class="c-stat-lbl">温度</div></div>
+          <div class="c-stat"><div class="c-stat-val">58%</div><div class="c-stat-lbl">湿度</div></div>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px">8行 × 5列 药斗布局 · 点击药斗操作</div>
+        <div class="drawer-grid" id="drawer-grid-main"></div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-sq lsq-low"></div>缺药（&lt;15%）</div>
+        <div class="legend-item"><div class="legend-sq lsq-warn"></div>预警（15–30%）</div>
+        <div class="legend-item"><div class="legend-sq lsq-ok"></div>充足（>30%）</div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════
+       PAGE: 机器人详情
+  ════════════════════════════ -->
+  <div id="pg-robot" class="page">
+    <div class="header">
+      <div class="header-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </div>
+      <div style="flex:1">
+        <div class="header-title">R3 机器人</div>
+        <div class="header-sub">故障处理</div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="robot-status-card">
+        <div class="robot-id-row">
+          <div class="robot-id">R3</div>
+          <span class="pill pill-red">故障停机</span>
+        </div>
+        <div class="robot-stats-grid">
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--amber)">55%</div><div class="r-stat-lbl">电量</div></div>
+          <div class="r-stat"><div class="r-stat-val">B区</div><div class="r-stat-lbl">当前位置</div></div>
+          <div class="r-stat"><div class="r-stat-val" style="color:var(--red)">停机</div><div class="r-stat-lbl">运行状态</div></div>
+        </div>
+      </div>
+
+      <div style="padding: 0 14px 10px; font-size:12px; font-weight:500; color:var(--text2); text-transform:uppercase; letter-spacing:.06em">关节健康状态</div>
+      <div class="joint-grid">
+        <div class="joint-cell ok"><div class="joint-name">J1</div><div class="joint-status">正常</div></div>
+        <div class="joint-cell err"><div class="joint-name">J2</div><div class="joint-status">异常扭矩</div><div class="joint-code">ERR-0x42</div></div>
+        <div class="joint-cell ok"><div class="joint-name">J3</div><div class="joint-status">正常</div></div>
+        <div class="joint-cell ok"><div class="joint-name">J4</div><div class="joint-status">正常</div></div>
+        <div class="joint-cell ok"><div class="joint-name">J5</div><div class="joint-status">正常</div></div>
+        <div class="joint-cell ok"><div class="joint-name">J6</div><div class="joint-status">正常</div></div>
+      </div>
+
+      <div class="fault-card">
+        <div class="fault-title">故障详情 · ERR-0x42</div>
+        <div class="fault-desc">J2 关节检测到超出阈值的异常扭矩（峰值 142% 额定值），保护机制触发，机械臂已停止运动。</div>
+        <div class="fault-suggest">建议处理方式：检查 J2 关节机械结构是否有异物阻塞，确认无障碍后可尝试复位。如复位失败，请联系维修人员。</div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary danger" onclick="goTo('pg-fault-confirm')">进入故障确认流程 →</button>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════
+       PAGE: 补药确认
+  ════════════════════════════ -->
+  <div id="pg-restock-confirm" class="page">
+    <div class="header">
+      <div class="header-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </div>
+      <div class="header-title">补药确认</div>
+    </div>
+    <div class="scroll">
+      <div class="confirm-body">
+        <div class="confirm-note">请确认以下信息无误后，点击「确认完成」，系统将自动更新该药斗的库存状态。</div>
+
+        <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">药斗信息</div>
+        <div class="confirm-card confirm-highlight">
+          <div class="confirm-row"><span class="confirm-label">药柜编号</span><span class="confirm-value" id="rc-cabinet">B1柜</span></div>
+          <div class="confirm-row"><span class="confirm-label">药斗位置</span><span class="confirm-value" id="rc-pos">第3排 第2格</span></div>
+          <div class="confirm-row"><span class="confirm-label">中药名称</span><span class="confirm-value" id="rc-herb">当归</span></div>
+          <div class="confirm-row"><span class="confirm-label">补药前余量</span><span class="confirm-value" style="color:var(--red)" id="rc-before">11%（约 55g）</span></div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:14px">本次补药</div>
+        <div class="confirm-card">
+          <div class="confirm-row"><span class="confirm-label">补药批号</span><span class="confirm-value">PH-20240322-0047</span></div>
+          <div class="confirm-row"><span class="confirm-label">本次补入量</span><span class="confirm-value" style="color:var(--green)">500g（满格）</span></div>
+          <div class="confirm-row"><span class="confirm-label">操作药师</span><span class="confirm-value">李淑芬</span></div>
+          <div class="confirm-row"><span class="confirm-label">操作时间</span><span class="confirm-value" id="rc-time"></span></div>
+        </div>
+        <div class="spacer"></div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary success" onclick="confirmRestock()">确认完成补药</button>
+      <button class="btn-secondary" onclick="goBack()">返回修改</button>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════
+       PAGE: 故障确认
+  ════════════════════════════ -->
+  <div id="pg-fault-confirm" class="page">
+    <div class="header">
+      <div class="header-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </div>
+      <div class="header-title">故障确认</div>
+    </div>
+    <div class="scroll">
+      <div class="confirm-body">
+        <div class="confirm-note">请填写现场处理情况，提交后系统将根据结果自动更新设备状态或生成维修工单。</div>
+
+        <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">故障设备</div>
+        <div class="confirm-card">
+          <div class="confirm-row"><span class="confirm-label">设备编号</span><span class="confirm-value">R3 机器人</span></div>
+          <div class="confirm-row"><span class="confirm-label">故障代码</span><span class="confirm-value" style="font-family:monospace">ERR-0x42</span></div>
+          <div class="confirm-row"><span class="confirm-label">故障描述</span><span class="confirm-value">J2 关节异常扭矩</span></div>
+          <div class="confirm-row"><span class="confirm-label">发生时间</span><span class="confirm-value">10:31</span></div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:14px">处理结果</div>
+        <div class="radio-group" id="fault-result-group">
+          <div class="radio-item selected" onclick="selectFaultResult(this,'resolved')">
+            <div class="radio-circle"><div class="radio-dot"></div></div>
+            <div><div class="radio-label">已处理 — 设备恢复正常</div><div class="radio-desc">现场排查后已解除故障，设备可继续作业</div></div>
+          </div>
+          <div class="radio-item" onclick="selectFaultResult(this,'repair')">
+            <div class="radio-circle"><div class="radio-dot"></div></div>
+            <div><div class="radio-label">需要维修 — 生成维修工单</div><div class="radio-desc">故障无法现场处理，需专业维修人员介入</div></div>
+          </div>
+        </div>
+
+        <div style="font-size:12px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;margin-top:6px">处理记录（选填）</div>
+        <textarea id="fault-note" placeholder="描述现场处理过程，如：检查J2关节后发现药斗碎片卡入，清除后复位成功…"></textarea>
+        <div class="spacer"></div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="confirmFault()">提交确认</button>
+      <button class="btn-secondary" onclick="goBack()">取消</button>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════
+       PAGE: 扫码页
+  ════════════════════════════ -->
+  <div id="pg-scan" class="page">
+    <div class="header">
+      <div class="header-back" onclick="goBack()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </div>
+      <div class="header-title">扫码识别</div>
+    </div>
+    <div class="scroll">
+      <div class="scan-viewfinder">
+        <div class="scan-grid-lines"></div>
+        <div class="scan-frame">
+          <div class="scan-box">
+            <div class="scan-box-b"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
+      </div>
+      <div class="scan-hint">将摄像头对准药柜或药斗上的二维码<br>识别后自动跳转至对应操作页面</div>
+
+      <div class="section">
+        <div class="section-label">模拟快速跳转</div>
+        <div class="scan-btn-row" style="padding:0;gap:10px">
+          <div class="scan-shortcut" onclick="goTo('pg-cabinet','B1','3')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+            <div class="scan-shortcut-label">B1柜 · 当归</div>
+            <div class="scan-shortcut-sub">自动高亮目标药斗</div>
+          </div>
+          <div class="scan-shortcut" onclick="goTo('pg-cabinet','E1','7')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="16" y2="21"/><line x1="2" y1="9" x2="22" y2="9"/><line x1="2" y1="15" x2="22" y2="15"/></svg>
+            <div class="scan-shortcut-label">E1柜 · 黄芪</div>
+            <div class="scan-shortcut-sub">自动高亮目标药斗</div>
+          </div>
+          <div class="scan-shortcut" onclick="goTo('pg-robot')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M9 8V5M15 8V5M12 3v2"/><circle cx="9" cy="14" r="1.5" fill="currentColor"/><circle cx="15" cy="14" r="1.5" fill="currentColor"/></svg>
+            <div class="scan-shortcut-label">R3 机器人</div>
+            <div class="scan-shortcut-sub">查看故障详情</div>
+          </div>
+        </div>
+      </div>
+      <div class="spacer"></div>
+    </div>
+    <div class="bottom-nav">
+      <div class="nav-btn" onclick="goTo('pg-tasks'); switchTab('tasks',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span>任务</span>
+      </div>
+      <div class="nav-btn active" onclick="switchTab('scan',this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9V5a2 2 0 012-2h4M3 15v4a2 2 0 002 2h4M15 3h4a2 2 0 012 2v4M15 21h4a2 2 0 002-2v-4"/><rect x="8" y="8" width="8" height="8" rx="1"/></svg>
+        <span>扫码</span>
+      </div>
+      <div class="nav-btn nav-badge" onclick="openAlarmDrawer()">
+        <div style="position:relative;display:inline-block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <div class="nav-badge-dot"></div>
+        </div>
+        <span>报警</span>
+      </div>
+      <div class="nav-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span>我的</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+
+<!-- ════ 报警侧边栏 ════ -->
+<div class="alarm-overlay" id="alarm-overlay" onclick="closeAlarmDrawer()"></div>
+<div class="alarm-drawer" id="alarm-drawer">
+  <div class="alarm-drawer-header">
+    <div class="alarm-drawer-title">报警信息</div>
+    <div class="alarm-drawer-actions">
+      <button class="alarm-action-btn">清空已读</button>
+      <button class="alarm-action-btn">查看全部</button>
+    </div>
+    <div class="alarm-close" onclick="closeAlarmDrawer()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </div>
+  </div>
+  <div class="alarm-list">
+    <div class="alarm-item alarm-unread" onclick="closeAlarmDrawer();goTo('pg-robot')">
+      <div class="alarm-device alarm-r">R3</div>
+      <div class="alarm-content"><div class="alarm-title">J2 关节故障 · ERR-0x42</div><div class="alarm-time">10:31 · 未处理</div></div>
+    </div>
+    <div class="alarm-item alarm-unread" onclick="closeAlarmDrawer();goTo('pg-cabinet','B1','3')">
+      <div class="alarm-device alarm-a">B1</div>
+      <div class="alarm-content"><div class="alarm-title">当归余量 &lt;15%，需补药</div><div class="alarm-time">10:05 · 未处理</div></div>
+    </div>
+    <div class="alarm-item alarm-unread" onclick="closeAlarmDrawer();goTo('pg-cabinet','E1','7')">
+      <div class="alarm-device alarm-a">E1</div>
+      <div class="alarm-content"><div class="alarm-title">湿度超限 72% · 黄芪补药</div><div class="alarm-time">10:18 · 未处理</div></div>
+    </div>
+    <div class="alarm-item alarm-unread">
+      <div class="alarm-device alarm-r">R4</div>
+      <div class="alarm-content"><div class="alarm-title">电量 12%，已自动充电</div><div class="alarm-time">10:31 · 已自动处理</div></div>
+    </div>
+    <div class="alarm-item">
+      <div class="alarm-device">A2</div>
+      <div class="alarm-content"><div class="alarm-title">党参余量 22%，建议补药</div><div class="alarm-time">09:55 · 待处理</div></div>
+    </div>
+    <div class="alarm-item">
+      <div class="alarm-device">D1</div>
+      <div class="alarm-content"><div class="alarm-title">半夏余量 25%，建议补药</div><div class="alarm-time">10:02 · 待处理</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════ 药斗操作半屏 ════ -->
+<div class="sheet-overlay" id="sheet-overlay" onclick="closeSheet()"></div>
+<div class="sheet" id="drawer-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="sheet-title">当归 · 第3排第2格</div>
+  <div class="sheet-actions">
+    <div class="sheet-action" onclick="closeSheet();goTo('pg-restock-confirm')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg>
+      补药确认
+    </div>
+    <div class="sheet-action" onclick="closeSheet();showToast('已发送打开抽屉指令')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      打开抽屉
+    </div>
+    <div class="sheet-action" onclick="closeSheet();showToast('药品信息：当归（Angelica sinensis）')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      查看药品信息
+    </div>
+    <div class="sheet-action danger" onclick="closeSheet();showToast('已上报异常至监控台')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
+      上报异常
+    </div>
+  </div>
+</div>
+
+
+<!-- ════ Toast ════ -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+const herbs40 = ['当归','黄芪','党参','白术','茯苓','甘草','熟地','山药','白芍','柴胡','川芎','丹参','枸杞','菊花','金银花','连翘','板蓝根','半夏','陈皮','厚朴','桂枝','麻黄','薄荷','牛膝','杜仲','续断','骨碎补','鸡血藤','三七','红花','桃仁','莪术','延胡索','没药','乳香','苏木','砂仁','豆蔻','苍术','泽泻'];
+
+// ── Routing ──
+let history = ['pg-tasks'];
+let currentCabinetTarget = null;
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => { p.classList.remove('active'); p.style.display=''; });
+  const pg = document.getElementById(id);
+  pg.classList.add('active');
+}
+
+function goTo(id, cabinetId, targetRow) {
+  history.push(id);
+  if (id === 'pg-cabinet') {
+    setupCabinet(cabinetId || 'B1', targetRow ? parseInt(targetRow) : null);
+  }
+  if (id === 'pg-restock-confirm') {
+    document.getElementById('rc-time').textContent = new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+  }
+  showPage(id);
+}
+
+function goBack() {
+  if (history.length > 1) history.pop();
+  const prev = history[history.length - 1];
+  showPage(prev);
+}
+
+function switchTab(name, el) {
+  // only relevant for bottom nav visual state
+}
+
+// ── Cabinet ──
+const cabinetConfig = {
+  B1: { name:'B1 药柜', loc:'药房西区 · 第2排', lowRows:[2,5], warnRows:[0,3,6] },
+  E1: { name:'E1 药柜', loc:'药房东区 · 第5排', lowRows:[6,7], warnRows:[1,4] },
+  A2: { name:'A2 药柜', loc:'药房西区 · 第3排', lowRows:[],    warnRows:[1,2,4] },
+  D1: { name:'D1 药柜', loc:'药房中区 · 第4排', lowRows:[],    warnRows:[3,5,6] },
+  F2: { name:'F2 药柜', loc:'药房东区 · 第6排', lowRows:[],    warnRows:[2,4] },
+};
+
+function setupCabinet(id, targetRow) {
+  const cfg = cabinetConfig[id] || cabinetConfig['B1'];
+  document.getElementById('cabinet-title').textContent = cfg.name;
+  document.getElementById('cabinet-loc').textContent   = cfg.loc;
+  currentCabinetTarget = targetRow;
+
+  const grid = document.getElementById('drawer-grid-main');
+  grid.innerHTML = '';
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 5; col++) {
+      const idx  = row * 5 + col;
+      const herb = herbs40[idx] || '空';
+      let cls    = 'ok';
+      let pct    = Math.floor(Math.random() * 45) + 45;
+      if (cfg.lowRows.includes(row))  { cls = 'low';  pct = Math.floor(Math.random() * 12) + 3; }
+      if (cfg.warnRows.includes(row)) { cls = 'warn'; pct = Math.floor(Math.random() * 14) + 16; }
+      const isTarget = (targetRow !== null && row === targetRow - 1 && col === 1);
+      grid.innerHTML += `<div class="drawer-cell ${cls}${isTarget?' target':''}" onclick="openDrawerSheet('${herb}','${row+1}','${col+1}','${id}')">
+        <span>${herb.substring(0,2)}</span><span>${pct}%</span>
+      </div>`;
+    }
+  }
+  // scroll target into view
+  if (targetRow !== null) {
+    setTimeout(() => {
+      const t = grid.querySelector('.target');
+      if (t) t.scrollIntoView({behavior:'smooth', block:'center'});
+    }, 150);
+  }
+}
+
+// ── Sheet ──
+function openDrawerSheet(herb, row, col, cabinetId) {
+  document.getElementById('sheet-title').textContent = `${herb} · 第${row}排 第${col}格`;
+  // update confirm page data
+  document.getElementById('rc-cabinet').textContent = cabinetId + '柜';
+  document.getElementById('rc-pos').textContent     = `第${row}排 第${col}格`;
+  document.getElementById('rc-herb').textContent    = herb;
+  document.getElementById('sheet-overlay').classList.add('open');
+  document.getElementById('drawer-sheet').classList.add('open');
+}
+function closeSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.getElementById('drawer-sheet').classList.remove('open');
+}
+
+// ── Alarm drawer ──
+function openAlarmDrawer() {
+  document.getElementById('alarm-overlay').classList.add('open');
+  document.getElementById('alarm-drawer').classList.add('open');
+}
+function closeAlarmDrawer() {
+  document.getElementById('alarm-overlay').classList.remove('open');
+  document.getElementById('alarm-drawer').classList.remove('open');
+}
+
+// ── Fault confirm ──
+function selectFaultResult(el) {
+  document.querySelectorAll('#fault-result-group .radio-item').forEach(i => i.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function confirmFault() {
+  showToast('已提交 · 设备状态已更新');
+  setTimeout(() => { history = ['pg-tasks']; showPage('pg-tasks'); }, 1200);
+}
+
+function confirmRestock() {
+  showToast('补药完成 · 库存已更新');
+  setTimeout(() => { history = ['pg-tasks']; showPage('pg-tasks'); }, 1200);
+}
+
+// ── Toast ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── Init ──
+setupCabinet('B1', null);
+</script>
+</body>
+</html>
